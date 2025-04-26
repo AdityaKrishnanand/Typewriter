@@ -1,16 +1,12 @@
-require('dotenv').config()
-const express = require('express')
-const cors = require('cors')
+import dotenv from "dotenv";
+dotenv.config();
 
-const app = express()
-app.use(cors())
-app.use(express.json())
+import express from "express";
+import authRoutes from "./authRoutes.js";
 
-// Example route
-app.get('/', (req, res) => res.send('Typing App Backend'))
+const app = express();
+app.use(express.json());
+app.use("/api", authRoutes);
 
-app.listen(4000, () => {
-  console.log('Server running on http://localhost:4000')
-})
-
-
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
