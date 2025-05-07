@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { register, login } from "../lib/api";
+import { useNavigate } from "react-router-dom";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(true);
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,7 +16,11 @@ export default function AuthPage() {
 
     const response = await action(email, password);
 
-    setMessage(response.message);
+    if (response.message === "Login successful") {
+      navigate("/typing");
+    } else {
+      setMessage(response.message);
+    }
   };
 
   return (

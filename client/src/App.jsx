@@ -1,12 +1,14 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
-import "./App.css";
+import TypingPage from "./pages/TypingPage";
 
-function App() {
+export default function App() {
   return (
-    <div>
-      <AuthPage />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<AuthPage />} />
+        <Route path="/typing" element={<TypingPage />} />
+      </Routes>
+    </Router>
   );
 }
-
-export default App;

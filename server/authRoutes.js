@@ -24,12 +24,12 @@ router.post("/register", async (req, res) => {
       },
     });
 
-    res.status(201).json({
+    res.status(200).json({
       message: "User registered successfully",
       userId: newUser.id,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error during registration:", err);
     res.status(500).json({ message: "Registration failed" });
   }
 });
@@ -85,7 +85,7 @@ router.get("/profile", authenticateToken, async (req, res) => {
 
     return res.status(200).json({ user });
   } catch (err) {
-    console.log(error);
+    console.log(err);
     return res.status(500).json({ message: "Something went wrong" });
   }
 });
