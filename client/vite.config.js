@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 // Import Tailwind CSS
-import tailwindcss from "@tailwindcss/postcss"; // Correctly import the tailwindcss PostCSS plugin
+import tailwindcss from "tailwindcss"; // Correctly import tailwindcss (not @tailwindcss/postcss)
 import autoprefixer from "autoprefixer"; // Import Autoprefixer
 
 // https://vite.dev/config/
