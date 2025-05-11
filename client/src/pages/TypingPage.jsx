@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { saveScore } from "../lib/api";
 
 const sampleText = "The quick brown fox jumps over the lazy dog.";
 
@@ -7,25 +9,63 @@ export default function TypingPage() {
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [wpm, setWpm] = useState(null);
+  const [accuracy, setAccuracy] = useState(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [countdown, setCountdown] = useState(null);
   const inputRef = useRef();
 
   useEffect(() => {
-    if (typed.length === 1 && !startTime) {
+    if (hasStarted && countdown === 0) {
+      inputRef.current?.focus();
       setStartTime(Date.now());
     }
+  }, [countdown, hasStarted]);
 
+  useEffect(() => {
+    let interval;
+    if (hasStarted && countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [hasStarted, countdown]);
+
+  useEffect(() => {
     if (typed === sampleText) {
       const end = Date.now();
       setEndTime(end);
       const minutes = (end - startTime) / 1000 / 60;
       const words = sampleText.trim().split(/\s+/).length;
-      setWpm(Math.round(words / minutes));
+      const correctChars = typed
+        .split("")
+        .filter((char, i) => char === sampleText[i]).length;
+      const acc = Math.round((correctChars / sampleText.length) * 100);
+
+      const calculatedWpm = Math.round(words / minutes);
+      setWpm(calculatedWpm);
+      setAccuracy(acc);
+
+      const token = localStorage.getItem("token");
+      if (token) {
+        saveScore(calculatedWpm, acc, token);
+      }
     }
   }, [typed]);
 
   const getCharClass = (char, index) => {
     if (!typed[index]) return "";
     return typed[index] === char ? "text-green-600" : "text-red-500";
+  };
+
+  const handleStart = () => {
+    setTyped("");
+    setWpm(null);
+    setAccuracy(null);
+    setStartTime(null);
+    setEndTime(null);
+    setCountdown(3);
+    setHasStarted(true);
   };
 
   return (
@@ -43,20 +83,45 @@ export default function TypingPage() {
           ))}
         </div>
 
+        {countdown !== null && countdown > 0 && (
+          <p className="text-center mt-4 text-xl text-blue-600 font-bold">
+            Starting in {countdown}...
+          </p>
+        )}
+
         <input
           ref={inputRef}
           type="text"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
-          className="mt-6 w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+          disabled={!hasStarted || countdown > 0}
+          className="mt-6 w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200"
           placeholder="Start typing here..."
         />
 
         {wpm !== null && (
-          <p className="mt-4 text-center text-green-700 font-semibold">
-            🎉 Your speed: {wpm} WPM
-          </p>
+          <div className="mt-4 text-center text-green-700 font-semibold space-y-1">
+            <p>🚀 Your speed: {wpm} WPM</p>
+            <p>🎯 Accuracy: {accuracy}%</p>
+            <div className="mt-4 text-center">
+              <Link
+                to="/leaderboard"
+                className="text-purple-600 hover:underline text-sm"
+              >
+                View Leaderboard
+              </Link>
+            </div>
+          </div>
         )}
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleStart}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition duration-200"
+          >
+            {hasStarted ? "Restart" : "Start Test"}
+          </button>
+        </div>
       </div>
     </div>
   );

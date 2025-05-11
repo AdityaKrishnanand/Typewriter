@@ -10,7 +10,7 @@ router.post("/score", authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   try {
-    const newScore = prisma.score.create({
+    const newScore = await prisma.score.create({
       data: {
         wpm: wpm,
         accuracy: accuracy,
@@ -31,9 +31,9 @@ router.get("/leaderboard", authenticateToken, async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
 
   try {
-    const getScores = prisma.score.findMany({
+    const getScores = await prisma.score.findMany({
       orderBy: { wpm: "desc" },
-      takeLimit: limit,
+      take: limit,
       include: { user: { select: { email: true } } },
     });
 
