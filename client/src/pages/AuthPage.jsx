@@ -16,7 +16,8 @@ export default function AuthPage() {
 
     const response = await action(email, password);
 
-    if (response.message === "Login successful") {
+    if (response.message === "Login successful.") {
+      console.log(response);
       navigate("/typing");
     } else {
       setMessage(response.message);
