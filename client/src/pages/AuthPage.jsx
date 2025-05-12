@@ -1,33 +1,57 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { animate } from 'animejs';
+
 import { register, login } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { useSnackbar } from "../components/Snackbar";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(true);
-  const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const { showSnackbar } = useSnackbar();
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    anime({
+      targets: cardRef.current,
+      opacity: [0, 1],
+      duration: 1000,
+      easing: "easeInOutQuad",
+    });
+  }, []);
+
+  useEffect(() => {
+    anime({
+      targets: ".auth-title",
+      opacity: [0, 1],
+      translateX: [-10, 0],
+      duration: 600,
+      easing: "easeOutQuad",
+    });
+  }, [isRegister]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const action = isRegister ? register : login;
-
     const response = await action(email, password);
 
     if (response.message === "Login successful.") {
-      console.log(response);
+      showSnackbar("Login successful", "success");
       navigate("/typing");
     } else {
-      setMessage(response.message);
+      showSnackbar(response.message, "error");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-400 via-pink-500 to-red-400 p-6">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+      <div
+        ref={cardRef}
+        className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md opacity-0"
+      >
+        <h2 className="auth-title text-2xl font-bold text-center text-gray-800 mb-6">
           {isRegister ? "Register" : "Login"}
         </h2>
 
@@ -55,10 +79,6 @@ export default function AuthPage() {
             {isRegister ? "Register" : "Login"}
           </button>
         </form>
-
-        {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
-        )}
 
         <div className="mt-6 text-center">
           <button
