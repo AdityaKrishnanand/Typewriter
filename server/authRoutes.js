@@ -1,5 +1,5 @@
 import express from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs"; // Change to bcryptjs
 import prisma from "./prismaClient.js";
 import jwt from "jsonwebtoken";
 import { authenticateToken } from "./authMiddleware.js";
@@ -15,7 +15,7 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10); // Change to bcryptjs.hash
 
     const newUser = await prisma.user.create({
       data: {
@@ -44,7 +44,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials." });
     }
 
-    const isMatching = await bcrypt.compare(password, user.password);
+    const isMatching = await bcrypt.compare(password, user.password); // Change to bcryptjs.compare
 
     if (!isMatching) {
       return res.status(400).json({ message: "Invalid credentials." });

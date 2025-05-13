@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { animate } from 'animejs';
+import anime from "animejs";
 
 import { register, login } from "../lib/api";
 import { useNavigate } from "react-router-dom";
