@@ -5,7 +5,7 @@ export const apiUrl =
 
 export async function register(email, password) {
   try {
-    const res = await axios.post(`${API_URL}/register`, {
+    const res = await axios.post(`${apiUrl}/register`, {
       email,
       password,
     });
