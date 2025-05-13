@@ -1,23 +1,23 @@
-FROM node:18-alpine
-
+# 1) Build stage: uses full Node with devDependencies
+FROM node:18-alpine AS build
 WORKDIR /app
 
-# Install dependencies (include devDependencies)
-COPY package*.json ./
-ENV NODE_ENV=development
+# Copy only package files, install EVERYTHING (including vite)
+COPY package.json package-lock.json ./
+ARG NODE_ENV=development
+ENV NODE_ENV=${NODE_ENV}
 RUN npm install
 
-# Copy project files
+# Copy rest of source & build
 COPY . .
+RUN npm run build   # calls "vite build"
 
-# Build the Vite app
-RUN ./node_modules/.bin/vite build
+# 2) Production stage: serve with nginx (no Node, no vite)
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Install 'serve' globally to serve static files
-RUN npm install -g serve
+# Expose default HTTP port
+EXPOSE 80
 
-# Expose the port used by serve
-EXPOSE 5173
-
-# Start the static server
-CMD ["serve", "-s", "dist", "-l", "5173"]
+# Keep nginx running
+CMD ["nginx", "-g", "daemon off;"]
