@@ -1,13 +1,17 @@
 FROM node:18-alpine
+
 WORKDIR /app
 
+# Ensure all dependencies including devDependencies are installed
 COPY package*.json ./
+ENV NODE_ENV=development
 RUN npm install
 
+# Copy the rest of the application
 COPY . .
 
 # Build the Vite app
-RUN npm run build
+RUN npx vite build
 
 # Install serve to serve the built static files
 RUN npm install -g serve

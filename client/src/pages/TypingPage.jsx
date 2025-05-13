@@ -6,6 +6,29 @@ import "./TypingPage.css"; // Import the CSS file
 
 const sampleText = "The quick brown fox jumps over the lazy dog.";
 
+// Typing sound effects
+const keySound1 = new Audio();
+const keySound2 = new Audio();
+const keySound3 = new Audio();
+const keySounds = [keySound1, keySound2, keySound3];
+
+// Function to play random typing sound
+const playRandomKeySound = () => {
+  // In a real implementation, you would set the src for each sound
+  // keySound1.src = "path/to/key1.mp3";
+  // keySound2.src = "path/to/key2.mp3";
+  // keySound3.src = "path/to/key3.mp3";
+
+  // For demo purposes, we'll just log the sound play
+  console.log("Keyboard sound played");
+
+  // Uncomment to actually play sounds when you have audio files
+  // const sound = keySounds[Math.floor(Math.random() * keySounds.length)];
+  // sound.currentTime = 0;
+  // sound.volume = 0.3;
+  // sound.play();
+};
+
 export default function TypingPage() {
   const [typed, setTyped] = useState("");
   const [startTime, setStartTime] = useState(null);
@@ -15,6 +38,7 @@ export default function TypingPage() {
   const [hasStarted, setHasStarted] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [totalTypedCharacters, setTotalTypedCharacters] = useState(0);
+  const [progress, setProgress] = useState(0);
   const inputRef = useRef();
   const containerRef = useRef();
   const countdownRef = useRef();
@@ -194,37 +218,59 @@ export default function TypingPage() {
   };
 
   // Background animation based on typing speed
-  const animateBackground = () => {
-    if (!hasStarted || countdown > 0 || !containerRef.current) return;
+  const [realTimeWpm, setRealTimeWpm] = useState(0);
+  const speedTimerRef = useRef(null);
 
-    const currentTime = Date.now();
-    const typingSpeed = typed.length / ((currentTime - startTime) / 1000);
-
-    // Change background animation based on typing speed
-    const background = containerRef.current;
-    const intensity = Math.min(Math.max(typingSpeed / 5, 0.1), 1);
-
-    anime({
-      targets: background,
-      backgroundColor: [
-        { value: `rgba(255, 255, 255, 1)`, duration: 0 },
-        {
-          value: `rgba(${255 - 20 * intensity}, ${
-            255 - 10 * intensity
-          }, 255, 1)`,
-          duration: 300,
-        },
-      ],
-      easing: "easeOutQuad",
-    });
-  };
-
-  // Add effect when typing
+  // Calculate and show real-time WPM
   useEffect(() => {
     if (hasStarted && countdown === 0 && startTime && typed.length > 0) {
-      animateBackground();
+      clearInterval(speedTimerRef.current);
+
+      speedTimerRef.current = setInterval(() => {
+        const currentTime = Date.now();
+        const elapsedMinutes = (currentTime - startTime) / 1000 / 60;
+        const words = typed.trim().split(/\s+/).length;
+        const currentWpm = Math.round(words / elapsedMinutes) || 0;
+
+        setRealTimeWpm(currentWpm);
+
+        // Animate the speed indicator
+        anime({
+          targets: ".speed-indicator",
+          translateY: [
+            { value: -5, duration: 150 },
+            { value: 0, duration: 150 },
+          ],
+          opacity: [0.7, 1],
+          easing: "easeOutQuad",
+        });
+      }, 1000);
     }
+
+    return () => clearInterval(speedTimerRef.current);
   }, [typed, hasStarted, countdown, startTime]);
+
+  // Clear interval when test is complete
+  useEffect(() => {
+    if (endTime) {
+      clearInterval(speedTimerRef.current);
+    }
+  }, [endTime]);
+
+  // Update progress bar as user types
+  useEffect(() => {
+    if (hasStarted && countdown === 0) {
+      const newProgress = (typed.length / sampleText.length) * 100;
+      setProgress(newProgress);
+
+      anime({
+        targets: ".progress-bar-fill",
+        width: `${newProgress}%`,
+        duration: 300,
+        easing: "easeOutQuad",
+      });
+    }
+  }, [typed, hasStarted, countdown]);
 
   // Celebrate completion
   const celebrateCompletion = () => {
@@ -346,25 +392,29 @@ export default function TypingPage() {
         className="bg-white shadow-xl rounded-2xl p-8 max-w-2xl w-full relative typing-container"
       >
         <h2 className="text-2xl font-bold text-center mb-6 text-gray-700">
-          <span className="text-purple-600">Speed</span> Typing Test
+          Typing Test
         </h2>
 
-        {/* Typing progress indicator */}
-        {hasStarted && countdown === 0 && typed.length > 0 && !wpm && (
-          <div className="absolute top-4 right-4">
-            <div className="text-xs text-gray-500 mb-1 text-right">
-              Progress
-            </div>
-            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-purple-600 transition-all duration-300"
-                style={{
-                  width: `${(typed.length / sampleText.length) * 100}%`,
-                }}
-              ></div>
-            </div>
+        {/* Progress bar with speed indicator */}
+        <div className="relative mb-4">
+          <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="progress-bar-fill h-full bg-purple-600 rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            ></div>
           </div>
-        )}
+
+          {hasStarted && countdown === 0 && !endTime && (
+            <div
+              className={`speed-indicator absolute -top-6 right-0 text-sm font-semibold bg-white px-2 py-1 rounded shadow-sm ${
+                realTimeWpm > 50 ? "high" : realTimeWpm > 30 ? "medium" : "low"
+              }`}
+              style={{ opacity: realTimeWpm > 0 ? 1 : 0 }}
+            >
+              {realTimeWpm} WPM
+            </div>
+          )}
+        </div>
 
         <div
           className={`bg-gray-100 p-4 rounded-lg text-lg leading-relaxed font-mono border h-[100px] overflow-auto relative ${
@@ -411,41 +461,20 @@ export default function TypingPage() {
             ref={resultRef}
             className="mt-4 text-center text-green-700 font-semibold space-y-1"
           >
-            <div className="flex items-center justify-center space-x-8">
-              <div>
-                <p className="text-xl">🚀 Your speed</p>
-                <p className="text-3xl result-badge text-purple-600">
-                  {wpm} <span className="text-xl">WPM</span>
-                </p>
-              </div>
-              <div>
-                <p className="text-xl">🎯 Accuracy</p>
-                <p className="text-3xl result-badge text-emerald-600">
-                  {accuracy}
-                  <span className="text-xl">%</span>
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 text-center">
+            <p className="text-xl">
+              🚀 Your speed:{" "}
+              <span className="text-2xl result-badge">{wpm} WPM</span>
+            </p>
+            <p className="text-xl">
+              🎯 Accuracy:{" "}
+              <span className="text-2xl result-badge">{accuracy}%</span>
+            </p>
+            <div className="mt-4 text-center">
               <Link
                 to="/leaderboard"
-                className="text-purple-600 hover:underline text-base font-medium inline-flex items-center group"
+                className="text-purple-600 hover:underline text-sm"
               >
-                <span>View Leaderboard</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform duration-200"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
+                View Leaderboard
               </Link>
             </div>
           </div>
@@ -454,22 +483,11 @@ export default function TypingPage() {
         <div className="mt-6 text-center">
           <button
             onClick={handleStart}
-            className="relative overflow-hidden bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition duration-200 transform hover:scale-105"
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition duration-200 transform hover:scale-105 relative overflow-hidden"
           >
-            {hasStarted ? "Restart Test" : "Start Test"}
+            {hasStarted ? "Restart" : "Start Test"}
           </button>
         </div>
-
-        {/* Message to encourage users when they start typing */}
-        {hasStarted &&
-          countdown === 0 &&
-          typed.length > 0 &&
-          typed.length < sampleText.length &&
-          !wpm && (
-            <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-purple-600 text-sm font-medium bg-white px-3 py-1 rounded-full shadow">
-              Keep going, you're doing great!
-            </div>
-          )}
       </div>
     </div>
   );
