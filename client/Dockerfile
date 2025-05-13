@@ -2,22 +2,22 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Ensure all dependencies including devDependencies are installed
+# Install dependencies (include devDependencies)
 COPY package*.json ./
 ENV NODE_ENV=development
 RUN npm install
 
-# Copy the rest of the application
+# Copy project files
 COPY . .
 
 # Build the Vite app
-RUN npx vite build
+RUN ./node_modules/.bin/vite build
 
-# Install serve to serve the built static files
+# Install 'serve' globally to serve static files
 RUN npm install -g serve
 
-# Expose the port serve will run on
+# Expose the port used by serve
 EXPOSE 5173
 
-# Start the app
+# Start the static server
 CMD ["serve", "-s", "dist", "-l", "5173"]
