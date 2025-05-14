@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
-import { SnackbarProvider } from './components/Snackbar.jsx';
+import { SnackbarProvider } from './components/SnackbarContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
