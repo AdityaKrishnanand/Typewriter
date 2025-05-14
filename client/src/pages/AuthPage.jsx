@@ -3,7 +3,7 @@ import anime from "animejs";
 
 import { register, login } from "../lib/api";
 import { useNavigate } from "react-router-dom";
-import { useSnackbar } from "../components/Snackbar";
+import { useSnackbar } from "../components/SnackbarContext";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
