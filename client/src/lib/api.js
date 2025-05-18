@@ -5,10 +5,16 @@ export const apiUrl =
 
 export async function register(email, password) {
   try {
-    const res = await axios.post(`${apiUrl}/register`, {
-      email,
-      password,
-    });
+    const res = await axios.post(
+      `${apiUrl}/register`,
+      {
+        email,
+        password,
+      },
+      {
+        withCredentials: true,
+      }
+    );
     if (res.data.token) {
       localStorage.setItem("token", res.data.token);
     }
@@ -23,7 +29,17 @@ export async function register(email, password) {
 
 export async function login(email, password) {
   try {
-    const res = await axios.post(`${apiUrl}/login`, { email, password });
+    const res = await axios.post(
+      `${apiUrl}/login`,
+      {
+        email,
+        password,
+      },
+      {
+        withCredentials: true,
+      }
+    );
+
     if (res.data.token) {
       localStorage.setItem("token", res.data.token);
     }
@@ -44,6 +60,7 @@ export async function saveScore(wpm, accuracy, token) {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ wpm, accuracy }),
+    credentials: "include",
   });
 
   return res.json();
@@ -54,6 +71,7 @@ export async function getLeaderboard(token, limit = 10) {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    credentials: "include",
   });
 
   return res.json();
