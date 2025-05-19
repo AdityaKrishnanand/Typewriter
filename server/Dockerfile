@@ -12,6 +12,8 @@ COPY . .
 
 RUN npx prisma generate
 
+RUN npx prisma migrate deploy
+
 # Expose port and run the application
 EXPOSE 3001
 CMD ["npm", "start"]
