@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Navbar from "./components/Navbar";
 import AuthPage from "./pages/AuthPage";
 import TypingPage from "./pages/TypingPage";
@@ -10,6 +15,7 @@ export default function App() {
     <Router>
       <Navbar />
       <Routes>
+        <Route path="/" element={<Navigate to="/typing" replace />} />
         <Route path="/typing" element={<TypingPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route

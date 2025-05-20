@@ -1,35 +1,36 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { saveScore } from "../lib/api";
 import anime from "animejs/lib/anime.es.js";
-import "./TypingPage.css"; // Import the CSS file
+import "./TypingPage.css";
 
-const sampleText = "The quick brown fox jumps over the lazy dog.";
+// Sample paragraphs for typing tests
+const sampleParagraphs = [
+  "The quick brown fox jumps over the lazy dog.",
+  "A journey of a thousand miles begins with a single step.",
+  "All that glitters is not gold; all who wander are not lost.",
+  "The best way to predict the future is to create it.",
+  "Happiness is not something ready-made. It comes from your own actions.",
+  "Yesterday is history, tomorrow is a mystery, but today is a gift. That's why we call it the present.",
+  "Success is not final, failure is not fatal: It is the courage to continue that counts.",
+  "The only limit to our realization of tomorrow will be our doubts of today.",
+  "Life is what happens when you're busy making other plans.",
+  "The purpose of our lives is to be happy and spread happiness to others.",
+];
 
-// Typing sound effects
-const keySound1 = new Audio();
-const keySound2 = new Audio();
-const keySound3 = new Audio();
-const keySounds = [keySound1, keySound2, keySound3];
+// Function to generate random paragraph
+const getRandomParagraph = () => {
+  return sampleParagraphs[Math.floor(Math.random() * sampleParagraphs.length)];
+};
 
 // Function to play random typing sound
 const playRandomKeySound = () => {
-  // In a real implementation, you would set the src for each sound
-  // keySound1.src = "path/to/key1.mp3";
-  // keySound2.src = "path/to/key2.mp3";
-  // keySound3.src = "path/to/key3.mp3";
-
-  // For demo purposes, we'll just log the sound play
   console.log("Keyboard sound played");
-
-  // Uncomment to actually play sounds when you have audio files
-  // const sound = keySounds[Math.floor(Math.random() * keySounds.length)];
-  // sound.currentTime = 0;
-  // sound.volume = 0.3;
-  // sound.play();
 };
 
 export default function TypingPage() {
+  const navigate = useNavigate();
+  const [currentText, setCurrentText] = useState(getRandomParagraph());
   const [typed, setTyped] = useState("");
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
@@ -39,17 +40,37 @@ export default function TypingPage() {
   const [countdown, setCountdown] = useState(null);
   const [totalTypedCharacters, setTotalTypedCharacters] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [realTimeWpm, setRealTimeWpm] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [isTestCompleted, setIsTestCompleted] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [paragraphsCompleted, setParagraphsCompleted] = useState(0);
+
+  // Refs
   const inputRef = useRef();
   const containerRef = useRef();
   const countdownRef = useRef();
   const charactersRef = useRef([]);
   const resultRef = useRef();
   const confettiRef = useRef();
+  const speedTimerRef = useRef(null);
+  const timeLeftRef = useRef(null);
 
-  // Reset character refs when component mounts
+  // Check if user is logged in
   useEffect(() => {
-    charactersRef.current = charactersRef.current.slice(0, sampleText.length);
+    const token = localStorage.getItem("token");
+    const storedUserId = localStorage.getItem("userId");
+    if (token && storedUserId) {
+      setUserId(storedUserId);
+    }
   }, []);
+
+  // Reset character refs when text changes
+  useEffect(() => {
+    charactersRef.current = charactersRef.current.slice(0, currentText.length);
+  }, [currentText]);
 
   // Entrance animation when component mounts
   useEffect(() => {
@@ -100,46 +121,100 @@ export default function TypingPage() {
     return () => clearInterval(interval);
   }, [hasStarted, countdown]);
 
-  // Handle test completion
+  // Timer for timed tests
   useEffect(() => {
-    if (typed === sampleText) {
-      const end = Date.now();
-      setEndTime(end);
-      const minutes = (end - startTime) / 1000 / 60;
-      const wordCount = sampleText.trim().split(/\s+/).length;
-
-      let correctChars = 0;
-      for (let i = 0; i < sampleText.length; i++) {
-        if (typed[i] === sampleText[i]) correctChars++;
-      }
-
-      const calculatedWpm = Math.round(wordCount / minutes);
-      const acc = Math.round((correctChars / totalTypedCharacters) * 100);
-      setWpm(calculatedWpm);
-      setAccuracy(acc);
-
-      const token = localStorage.getItem("token");
-      if (token) {
-        saveScore(calculatedWpm, acc, token);
-      }
-
-      // Celebration animation
-      celebrateCompletion();
+    if (hasStarted && countdown === 0 && selectedTime && timeLeft > 0) {
+      timeLeftRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timeLeftRef.current);
+            finishTest();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-  }, [typed]);
+    return () => clearInterval(timeLeftRef.current);
+  }, [hasStarted, countdown, selectedTime, timeLeft]);
+
+  // Handle paragraph completion
+  useEffect(() => {
+    if (typed === currentText) {
+      // Increment completed paragraphs
+      setParagraphsCompleted((prev) => prev + 1);
+
+      // Load next paragraph for infinite mode
+      if (!selectedTime) {
+        setCurrentText(getRandomParagraph());
+        setTyped("");
+      } else {
+        // For timed mode, just update progress
+        const updatedTotalChars = totalTypedCharacters + currentText.length;
+        setTotalTypedCharacters(updatedTotalChars);
+      }
+
+      // Animate transition to next paragraph
+      anime({
+        targets: ".typing-text-container",
+        opacity: [1, 0.5, 1],
+        translateY: [0, -10, 0],
+        duration: 600,
+        easing: "easeOutQuad",
+      });
+
+      // Play completion sound/effect
+      playCompletionEffect();
+    }
+  }, [typed, currentText, selectedTime]);
+
+  // Handle test completion (timed mode)
+  const finishTest = () => {
+    setIsTestCompleted(true);
+    setEndTime(Date.now());
+
+    const end = Date.now();
+    const minutes = (end - startTime) / 1000 / 60;
+
+    // Calculate WPM based on standard 5 characters per word
+    const wordCount = totalTypedCharacters / 5;
+
+    // Calculate correct characters for accuracy
+    let correctChars = 0;
+    let totalChars = 0;
+
+    // In timed mode, we accumulate characters across paragraphs
+    const calculatedWpm = Math.round(wordCount / minutes);
+    const acc = Math.round((correctChars / totalChars || 0) * 100);
+
+    setWpm(calculatedWpm);
+    setAccuracy(acc);
+
+    // Save score if logged in
+    const token = localStorage.getItem("token");
+    if (token) {
+      saveScore(calculatedWpm, acc, token);
+    } else {
+      setShowLoginPrompt(true);
+    }
+
+    // Celebration animation
+    celebrateCompletion();
+  };
 
   const handleTyping = (e) => {
     const value = e.target.value;
 
     // Start time when typing begins
-    if (typed.length === 0 && value.length === 1) {
+    if (typed.length === 0 && value.length === 1 && !startTime) {
       setStartTime(Date.now());
     }
 
-    // Count only added characters (not deletions)
+    // Count total characters typed (for accuracy calculation)
     const addedChars = value.length - typed.length;
     if (addedChars > 0) {
       setTotalTypedCharacters((prev) => prev + addedChars);
+      playRandomKeySound();
     }
 
     setTyped(value);
@@ -217,20 +292,18 @@ export default function TypingPage() {
     });
   };
 
-  // Background animation based on typing speed
-  const [realTimeWpm, setRealTimeWpm] = useState(0);
-  const speedTimerRef = useRef(null);
-
   // Calculate and show real-time WPM
   useEffect(() => {
-    if (hasStarted && countdown === 0 && startTime && typed.length > 0) {
+    if (hasStarted && countdown === 0 && startTime && !isTestCompleted) {
       clearInterval(speedTimerRef.current);
 
       speedTimerRef.current = setInterval(() => {
         const currentTime = Date.now();
         const elapsedMinutes = (currentTime - startTime) / 1000 / 60;
-        const words = typed.trim().split(/\s+/).length;
-        const currentWpm = Math.round(words / elapsedMinutes) || 0;
+
+        // Calculate WPM based on all typed characters (standard 5 chars per word)
+        const totalWords = totalTypedCharacters / 5;
+        const currentWpm = Math.round(totalWords / elapsedMinutes) || 0;
 
         setRealTimeWpm(currentWpm);
 
@@ -248,19 +321,27 @@ export default function TypingPage() {
     }
 
     return () => clearInterval(speedTimerRef.current);
-  }, [typed, hasStarted, countdown, startTime]);
+  }, [
+    typed,
+    hasStarted,
+    countdown,
+    startTime,
+    totalTypedCharacters,
+    isTestCompleted,
+  ]);
 
   // Clear interval when test is complete
   useEffect(() => {
-    if (endTime) {
+    if (isTestCompleted) {
       clearInterval(speedTimerRef.current);
+      clearInterval(timeLeftRef.current);
     }
-  }, [endTime]);
+  }, [isTestCompleted]);
 
   // Update progress bar as user types
   useEffect(() => {
     if (hasStarted && countdown === 0) {
-      const newProgress = (typed.length / sampleText.length) * 100;
+      const newProgress = (typed.length / currentText.length) * 100;
       setProgress(newProgress);
 
       anime({
@@ -270,7 +351,7 @@ export default function TypingPage() {
         easing: "easeOutQuad",
       });
     }
-  }, [typed, hasStarted, countdown]);
+  }, [typed, hasStarted, countdown, currentText]);
 
   // Celebrate completion
   const celebrateCompletion = () => {
@@ -298,6 +379,54 @@ export default function TypingPage() {
 
     // Create confetti celebration
     createConfetti();
+  };
+
+  // Play small completion effect for paragraph completion
+  const playCompletionEffect = () => {
+    // Create mini-confetti or sparkle effect
+    const container = containerRef.current;
+    const sparkles = document.createElement("div");
+    sparkles.className = "paragraph-complete-sparkles";
+    container.appendChild(sparkles);
+
+    for (let i = 0; i < 20; i++) {
+      const sparkle = document.createElement("div");
+      sparkle.className = "sparkle";
+      sparkle.style.left = `${Math.random() * 100}%`;
+      sparkle.style.top = `${Math.random() * 100}%`;
+      sparkle.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 60%)`;
+      sparkles.appendChild(sparkle);
+    }
+
+    anime({
+      targets: ".sparkle",
+      scale: [0, 1, 0],
+      opacity: [0, 1, 0],
+      translateY: [0, -30],
+      delay: anime.stagger(10),
+      duration: 600,
+      easing: "easeOutExpo",
+      complete: () => {
+        container.removeChild(sparkles);
+      },
+    });
+
+    // Show quick notification
+    const notification = document.createElement("div");
+    notification.className = "paragraph-complete-notification";
+    notification.innerText = "Great job!";
+    container.appendChild(notification);
+
+    anime({
+      targets: notification,
+      opacity: [0, 1, 0],
+      translateY: [10, -30, -50],
+      duration: 1200,
+      easing: "easeOutExpo",
+      complete: () => {
+        container.removeChild(notification);
+      },
+    });
   };
 
   const getCharClass = (char, index) => {
@@ -334,13 +463,13 @@ export default function TypingPage() {
   useEffect(() => {
     if (
       typed.length > 0 &&
-      typed.length <= sampleText.length &&
+      typed.length <= currentText.length &&
       hasStarted &&
       countdown === 0
     ) {
       const currentCharRef = charactersRef.current[typed.length - 1];
       const isCorrect =
-        typed[typed.length - 1] === sampleText[typed.length - 1];
+        typed[typed.length - 1] === currentText[typed.length - 1];
 
       if (currentCharRef) {
         const rect = currentCharRef.getBoundingClientRect();
@@ -359,9 +488,9 @@ export default function TypingPage() {
         createTypingParticle(x, y, isCorrect);
       }
     }
-  }, [typed, hasStarted, countdown]);
+  }, [typed, hasStarted, countdown, currentText]);
 
-  const handleStart = () => {
+  const handleStart = (time = null) => {
     setTyped("");
     setWpm(null);
     setAccuracy(null);
@@ -369,6 +498,13 @@ export default function TypingPage() {
     setEndTime(null);
     setCountdown(3);
     setHasStarted(true);
+    setIsTestCompleted(false);
+    setSelectedTime(time);
+    setTimeLeft(time);
+    setTotalTypedCharacters(0);
+    setParagraphsCompleted(0);
+    setCurrentText(getRandomParagraph());
+    setShowLoginPrompt(false);
 
     // Animate button press
     anime({
@@ -379,8 +515,12 @@ export default function TypingPage() {
     });
   };
 
+  const handleLogin = () => {
+    navigate("/login");
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4 overflow-hidden">
       {/* Confetti container */}
       <div
         ref={confettiRef}
@@ -391,11 +531,74 @@ export default function TypingPage() {
         ref={containerRef}
         className="bg-white shadow-xl rounded-2xl p-8 max-w-2xl w-full relative typing-container"
       >
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-700">
-          Typing Test
+        <h2 className="text-2xl font-bold text-center mb-2 text-gray-700">
+          Typing Speed Test
         </h2>
 
-        {/* Progress bar with speed indicator */}
+        {/* Test mode selection */}
+        <div className="mb-4 flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => handleStart(null)}
+            className={`px-3 py-1 rounded-full text-sm ${
+              !selectedTime && hasStarted
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            Practice Mode
+          </button>
+          <button
+            onClick={() => handleStart(15)}
+            className={`px-3 py-1 rounded-full text-sm ${
+              selectedTime === 15
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            15 Seconds
+          </button>
+          <button
+            onClick={() => handleStart(30)}
+            className={`px-3 py-1 rounded-full text-sm ${
+              selectedTime === 30
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            30 Seconds
+          </button>
+          <button
+            onClick={() => handleStart(60)}
+            className={`px-3 py-1 rounded-full text-sm ${
+              selectedTime === 60
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            60 Seconds
+          </button>
+        </div>
+
+        {/* Stats bar */}
+        <div className="flex justify-between mb-2 text-sm text-gray-600">
+          <div className="flex gap-4">
+            <span>
+              Speed: <strong>{realTimeWpm || 0} WPM</strong>
+            </span>
+            {selectedTime && (
+              <span>
+                Time: <strong>{timeLeft}s</strong>
+              </span>
+            )}
+          </div>
+          {!selectedTime && (
+            <span>
+              Paragraphs: <strong>{paragraphsCompleted}</strong>
+            </span>
+          )}
+        </div>
+
+        {/* Progress bar */}
         <div className="relative mb-4">
           <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -403,25 +606,15 @@ export default function TypingPage() {
               style={{ width: `${progress}%` }}
             ></div>
           </div>
-
-          {hasStarted && countdown === 0 && !endTime && (
-            <div
-              className={`speed-indicator absolute -top-6 right-0 text-sm font-semibold bg-white px-2 py-1 rounded shadow-sm ${
-                realTimeWpm > 50 ? "high" : realTimeWpm > 30 ? "medium" : "low"
-              }`}
-              style={{ opacity: realTimeWpm > 0 ? 1 : 0 }}
-            >
-              {realTimeWpm} WPM
-            </div>
-          )}
         </div>
 
+        {/* Typing area */}
         <div
-          className={`bg-gray-100 p-4 rounded-lg text-lg leading-relaxed font-mono border h-[100px] overflow-auto relative ${
+          className={`typing-text-container bg-gray-100 p-4 rounded-lg text-lg leading-relaxed font-mono border h-[120px] overflow-auto relative ${
             hasStarted && countdown === 0 ? "typing-active" : ""
           }`}
         >
-          {sampleText.split("").map((char, idx) => (
+          {currentText.split("").map((char, idx) => (
             <span
               key={idx}
               ref={(el) => (charactersRef.current[idx] = el)}
@@ -451,28 +644,62 @@ export default function TypingPage() {
           type="text"
           value={typed}
           onChange={handleTyping}
-          disabled={!hasStarted || countdown > 0}
+          disabled={!hasStarted || countdown > 0 || isTestCompleted}
           className="mt-6 w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200"
-          placeholder="Start typing here..."
+          placeholder={hasStarted ? "Type here..." : "Press Start to begin..."}
         />
 
-        {wpm !== null && (
-          <div
-            ref={resultRef}
-            className="mt-4 text-center text-green-700 font-semibold space-y-1"
-          >
-            <p className="text-xl">
-              🚀 Your speed:{" "}
-              <span className="text-2xl result-badge">{wpm} WPM</span>
-            </p>
-            <p className="text-xl">
-              🎯 Accuracy:{" "}
-              <span className="text-2xl result-badge">{accuracy}%</span>
-            </p>
-            <div className="mt-4 text-center">
+        {/* Results area */}
+        {isTestCompleted && (
+          <div ref={resultRef} className="mt-4 text-center space-y-2">
+            <div className="flex flex-col items-center justify-center">
+              <h3 className="text-xl font-bold text-purple-700">
+                Test Complete!
+              </h3>
+              <div className="flex gap-6 mt-2">
+                <div className="text-center">
+                  <p className="text-gray-500 text-sm">Speed</p>
+                  <p className="text-2xl font-bold text-green-600">{wpm} WPM</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-500 text-sm">Accuracy</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {accuracy}%
+                  </p>
+                </div>
+                {!selectedTime && (
+                  <div className="text-center">
+                    <p className="text-gray-500 text-sm">Paragraphs</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {paragraphsCompleted}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {showLoginPrompt && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
+                <p className="text-blue-700">Want to save your score?</p>
+                <button
+                  onClick={handleLogin}
+                  className="mt-2 bg-blue-600 hover:bg-blue-700 text-white py-1 px-4 rounded text-sm"
+                >
+                  Log In
+                </button>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-center gap-3">
+              <button
+                onClick={() => handleStart(selectedTime)}
+                className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg text-sm"
+              >
+                Try Again
+              </button>
               <Link
                 to="/leaderboard"
-                className="text-purple-600 hover:underline text-sm"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg text-sm"
               >
                 View Leaderboard
               </Link>
@@ -480,15 +707,89 @@ export default function TypingPage() {
           </div>
         )}
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleStart}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition duration-200 transform hover:scale-105 relative overflow-hidden"
-          >
-            {hasStarted ? "Restart" : "Start Test"}
-          </button>
+        {!isTestCompleted && !hasStarted && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => handleStart(null)}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-xl transition duration-200 transform hover:scale-105 relative overflow-hidden"
+            >
+              Start Typing
+            </button>
+            <p className="mt-3 text-sm text-gray-600">
+              Choose a test mode above or just start practicing!
+            </p>
+          </div>
+        )}
+
+        {/* User status */}
+        <div className="absolute top-2 right-2 text-xs text-gray-500">
+          {userId ? (
+            <span className="flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+              Logged In
+            </span>
+          ) : (
+            <Link to="/login" className="hover:underline">
+              Log in to save scores
+            </Link>
+          )}
         </div>
       </div>
+
+      {/* Add extra CSS styles needed for new components */}
+      <style jsx>{`
+        .paragraph-complete-sparkles {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 30;
+        }
+
+        .sparkle {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .paragraph-complete-notification {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(139, 92, 246, 0.9);
+          color: white;
+          padding: 5px 12px;
+          border-radius: 20px;
+          font-weight: bold;
+          pointer-events: none;
+          z-index: 30;
+        }
+
+        .char-cursor::after {
+          content: "";
+          display: inline-block;
+          width: 2px;
+          height: 1.2em;
+          background-color: #8b5cf6;
+          margin-left: 1px;
+          vertical-align: middle;
+          animation: blink 0.8s infinite;
+        }
+
+        @keyframes blink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getLeaderboard } from "../lib/api";
+import { useSnackbar } from "../components/SnackbarContext";
 
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { showSnackbar } = useSnackbar();
 
   const token = localStorage.getItem("token");
 
