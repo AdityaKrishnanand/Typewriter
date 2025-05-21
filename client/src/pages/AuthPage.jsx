@@ -37,9 +37,11 @@ export default function AuthPage() {
     const action = isRegister ? register : login;
     const response = await action(email, password);
 
-    if (response.message === "Login successful.") {
-      showSnackbar("Login successful", "success");
-      navigate("/typing");
+    if (response.success) {
+      if (!isRegister) {
+        navigate("/typing");
+      }
+      showSnackbar(response.message, "success");
     } else {
       showSnackbar(response.message, "error");
     }

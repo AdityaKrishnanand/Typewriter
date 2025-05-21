@@ -3,24 +3,22 @@ import { Link, useNavigate } from "react-router-dom";
 import { saveScore } from "../lib/api";
 import anime from "animejs/lib/anime.es.js";
 import "./TypingPage.css";
+import { LoremIpsum } from "lorem-ipsum";
 
-// Sample paragraphs for typing tests
-const sampleParagraphs = [
-  "The quick brown fox jumps over the lazy dog.",
-  "A journey of a thousand miles begins with a single step.",
-  "All that glitters is not gold; all who wander are not lost.",
-  "The best way to predict the future is to create it.",
-  "Happiness is not something ready-made. It comes from your own actions.",
-  "Yesterday is history, tomorrow is a mystery, but today is a gift. That's why we call it the present.",
-  "Success is not final, failure is not fatal: It is the courage to continue that counts.",
-  "The only limit to our realization of tomorrow will be our doubts of today.",
-  "Life is what happens when you're busy making other plans.",
-  "The purpose of our lives is to be happy and spread happiness to others.",
-];
+const lorem = new LoremIpsum({
+  sentencesPerParagraph: {
+    max: 8,
+    min: 4,
+  },
+  wordsPerSentence: {
+    max: 16,
+    min: 4,
+  },
+});
 
 // Function to generate random paragraph
 const getRandomParagraph = () => {
-  return sampleParagraphs[Math.floor(Math.random() * sampleParagraphs.length)];
+  return lorem.generateParagraphs(1);
 };
 
 // Function to play random typing sound
